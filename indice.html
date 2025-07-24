@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>MaIAnMath - Simulador de Matemáticas</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; background-color: #f5f5f5; }
+    header { text-align: center; margin-bottom: 30px; }
+    header img { max-width: 150px; margin-bottom: 10px; }
+    header h1 { margin: 0; font-size: 2em; color: #333; }
+    header p { font-size: 1em; color: #555; }
+    #timer { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #dc3545; }
+    .question { margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    .result { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: center; }
+    button { padding: 10px 15px; margin-top: 10px; font-weight: bold; cursor: pointer; border-radius: 5px; border: none; background-color: #007bff; color: white; }
+    button:hover { background-color: #0056b3; }
+    .hidden { display: none; }
+    .correct { background-color: #d4edda; border-left: 5px solid #28a745; }
+    .incorrect { background-color: #f8d7da; border-left: 5px solid #dc3545; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="MaIA.webp" alt="Logo MaIAnMath">
+    <h1>MaIAnMath</h1>
+    <p>Simulador Diagnóstico de Matemáticas<br>Selecciona tu nivel de dificultad y demuestra lo que sabes.</p>
+  </header>
+
+  <label for="difficulty">Selecciona la prueba:</label>
+  <select id="difficulty">
+    <option value="easy">Fácil (5 min)</option>
+    <option value="medium">Intermedio (5 min)</option>
+    <option value="hard">Difícil (10 min)</option>
+    <option value="veryhard">Muy Difícil (10 min)</option>
+    <option value="preuni1">Test 1 Preuniversitario (10 min)</option>
+    <option value="preuni2">Test 2 Preuniversitario (10 min)</option>
+  </select>
+  <button onclick="loadTest()">Iniciar Test</button>
+
+  <div id="timer" class="hidden"></div>
+  
+  <form id="testForm" class="hidden" onsubmit="return gradeTest(event)">
+    <div id="questions"></div>
+    <button type="submit">Enviar Respuestas</button>
+  </form>
+  <div class="result" id="result"></div>
+
+  <script>
+    // Variable global para el intervalo del temporizador
+    let timerInterval;
+
+    const tests = {
+      easy: [
+        { q: '¿Cuánto es 3 + 5?', options: ['5', '7', '8', '10'], answer: 2 },
+        { q: '¿Cuánto es 12 - 4?', options: ['6', '8', '10', '12'], answer: 1 },
+        { q: '¿Cuánto es 5 x 2?', options: ['7', '10', '12', '15'], answer: 1 },
+      ],
+      medium: [
+        { q: '¿Cuánto es 15 x 2?', options: ['20', '25', '30', '35'], answer: 2 },
+        { q: '¿Cuánto es 100 ÷ 5?', options: ['15', '20', '25', '30'], answer: 1 },
+        { q: '¿Cuánto es 12²?', options: ['124', '134', '144', '154'], answer: 2 },
+      ],
+      hard: [
+        { q: 'Resuelve: 2x = 18', options: ['7', '8', '9', '10'], answer: 2 },
+        { q: '¿Cuánto es (2+3) x 4?', options: ['16', '20', '22', '24'], answer: 1 },
+        { q: '¿Cuál es la raíz cuadrada de 121?', options: ['9', '10', '11', '12'], answer: 2 },
+      ],
+      veryhard: [
+        { q: 'Resuelve: (3x - 2) = 10, ¿cuánto vale x?', options: ['4', '5', '6', '7'], answer: 0 },
+        { q: 'Si f(x) = 2x + 1, ¿cuánto es f(3)?', options: ['6', '7', '8', '9'], answer: 1 },
+        { q: '¿Factoriza: x² - 9?', options: ['(x+3)(x-3)', '(x-3)(x-3)', '(x+9)(x-1)', '(x+3)(x+3)'], answer: 0 },
+      ],
+      
+      // --- INICIO DEL TEST 1 PREUNIVERSITARIO INTEGRADO ---
+      preuni1: [
+        { q: '¿Cuál es el resultado de 4 + 1/2?', options: ['5/2', '8/2', '9/2', '6/2'], answer: 2 },
+        { q: '¿Cuál es el resultado de -3/2 + 1/2?', options: ['-7/6', '-2/5', '3/6', '3/5'], answer: 0 },
+        { q: '¿Cuál es el resultado de -4/5 - (-3) - 2/3?', options: ['1/15', '23/15', '-5/15', '-9/15'], answer: 1 },
+        { q: '¿Cuál es el resultado de 3√16 - 2√25?', options: ['-2', '14', '2', '-14'], answer: 2 },
+        { q: '¿Cuál es el resultado de -4√5 + √5?', options: ['-3√5', '-4√5', '-3√10', '-4√10'], answer: 0 },
+        { q: '¿Qué número señala la flecha en la figura?', image: 'ejercicio6.png', options: ['2/3', '5/2', '8/3', '9/4'], answer: 2 },
+        { q: '¿Qué número es mayor que -5/4?', options: ['-1', '-3/2', '-1 3/4', '-2'], answer: 0 },
+        { q: 'Aproximadamente, ¿qué número señala la flecha?', image: 'ejercicio8.png', options: ['-2.25', '-7/4', '-1.25', '-3/2'], answer: 1 },
+        { q: '¿Qué intervalo representa la gráfica?', image: 'ejercicio9.png', options: [']-2, 0[', '[-2, 0]', '[-2, 0[', ']-2, 0]'], answer: 3 },
+        { q: '¿Qué gráfica corresponde a la notación x ≥ -1?', image: 'ejercicio10.png', options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'], answer: 0 },
+        { q: 'En la figura, ¿cuánto mide el lado c?', image: 'ejercicio11.png', options: ['√5 cm', '√3 cm', '3 cm', '5 cm'], answer: 0 },
+        { q: 'En la figura, ¿cuánto mide el lado b?', image: 'ejercicio12.png', options: ['2 cm', '√2 cm', '√3 cm', '1 cm'], answer: 3 },
+        { q: '¿Cuál es la solución de 3x - 5 = 2x + 1?', options: ['x = 6', 'x = -6', 'x = -4', 'x = 4'], answer: 0 },
+        { q: '¿Cuál es la solución de -2(3x - 1) = -4x - 8?', options: ['x = 3', 'x = -9/2', 'x = -1', 'x = 5'], answer: 3 },
+        { q: '¿Qué número es solución de x<sup>2</sup> - 4 = 0?', options: ['√2', '1/2', '4', '-2'], answer: 3 },
+        { q: '¿Qué número es solución de x<sup>2</sup> - x - 6 = 0?', options: ['x = 3', 'x = 2', 'x = 6', 'x = 4'], answer: 0 },
+        { q: '¿Qué intervalo representa la solución de 3x + 2 ≤ 11?', options: [']3, +∞[', ']-∞, 3]', ']-∞, -3]', '[-3, +∞['], answer: 1 },
+        { q: '¿Cuál de los números pertenece a la solución de 3 - 2x ≤ 9?', options: ['-4', '-5', '-2', '-10'], answer: 2 },
+        { q: '¿Cuál es la factorización de 15x<sup>3</sup> + 20x<sup>2</sup>?', options: ['(5x + 4)(3x + 5)', '5x<sup>2</sup>(3x + 4)', '3x(5x<sup>2</sup> + 7)', '(5x - 4)(3x + 5)'], answer: 1 },
+        { q: '¿Cuál es la factorización de x<sup>2</sup> + 9x + 20?', options: ['(x + 10)(x + 2)', '(x + 20)(x + 1)', '(x - 10)(x + 2)', '(x + 4)(x + 5)'], answer: 3 },
+        { q: '¿Cuál es la factorización de 4x<sup>2</sup> - 16?', options: ['(2x + 8)(2x - 2)', '(4x + 4)(x + 4)', '(2x - 4)(2x + 4)', '(4x + 4)(x - 4)'], answer: 2 },
+        { q: 'Si P(x) = 3x<sup>2</sup> - 5x, ¿cuál es el valor de P(3)?', options: ['12', '13', '3', '6'], answer: 0 },
+        { q: 'Si x = -2, y = 3, ¿cuál es el valor de 5xy - y<sup>2</sup>?', options: ['-3', '-21', '-36', '-39'], answer: 3 },
+        { q: 'Una recta tiene pendiente 3 y pasa por el punto (0, 2). ¿Cuál es la ecuación de esta recta?', options: ['y = 3x + 2', 'y = 6x + 1', 'y = 2x + 3', 'y = x + 6'], answer: 0 },
+        { q: '¿Qué ecuación pasa por el punto (-1, 3)?', options: ['y = -2x - 1', 'y = -x + 2', 'y = x + 2', 'y = 2x + 1'], answer: 1 },
+      ],
+      // --- FIN DEL TEST 1 PREUNIVERSITARIO ---
+      
+      preuni2: [
+        // Este es el espacio para cuando hagamos el Test 2
+        { q: 'Pregunta de ejemplo para Test 2', options: ['a', 'b', 'c', 'd'], answer: 0 },
+      ]
+    };
+
+    function loadTest() {
+      const difficulty = document.getElementById('difficulty').value;
+      const questions = tests[difficulty];
+      const container = document.getElementById('questions');
+      const form = document.getElementById('testForm');
+      container.innerHTML = '';
+      
+      questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.classList.add('question');
+        div.setAttribute('id', `question-${i}`);
+        
+        // Construimos el HTML de la pregunta
+        let questionHTML = `<p><b>${i + 1}. ${q.q}</b></p>`;
+
+        // Si la pregunta tiene una propiedad "image", añadimos la etiqueta <img>
+        if (q.image) {
+          questionHTML += `<img src="${q.image}" alt="Figura para la pregunta ${i + 1}" style="max-width: 300px; display: block; margin: 10px 0;">`;
+        }
+        
+        let optionsHTML = '';
+        q.options.forEach((opt, j) => {
+          optionsHTML += `<label style="display: block; margin: 5px 0;"><input type="radio" name="q${i}" value="${j}" required> ${opt}</label>`;
+        });
+        
+        div.innerHTML = questionHTML + optionsHTML;
+        container.appendChild(div);
+      });
+
+      form.classList.remove('hidden');
+      document.getElementById('result').innerText = '';
+      
+      let timeLimitInSeconds;
+      if (difficulty === 'easy' || difficulty === 'medium') {
+        timeLimitInSeconds = 5 * 60; // 5 minutos
+      } else {
+        timeLimitInSeconds = 10 * 60; // 10 minutos para el resto
+      }
+      startTimer(timeLimitInSeconds);
+    }
+
+    function startTimer(duration) {
+      let timer = duration, minutes, seconds;
+      const display = document.getElementById('timer');
+      display.classList.remove('hidden');
+
+      clearInterval(timerInterval); 
+
+      timerInterval = setInterval(function () {
+        minutes = parseInt(timer / 60, 10);
+        seconds = parseInt(timer % 60, 10);
+
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+
+        display.textContent = "Tiempo restante: " + minutes + ":" + seconds;
+
+        if (--timer < 0) {
+          clearInterval(timerInterval);
+          alert("¡Se acabó el tiempo! El examen se enviará automáticamente.");
+          document.getElementById('testForm').dispatchEvent(new Event('submit'));
+        }
+      }, 1000);
+    }
+
+    function gradeTest(event) {
+      if(event) event.preventDefault();
+      clearInterval(timerInterval);
+      document.getElementById('timer').classList.add('hidden');
+
+      const difficulty = document.getElementById('difficulty').value;
+      const questions = tests[difficulty];
+      let score = 0;
+
+      questions.forEach((q, i) => {
+        const questionDiv = document.getElementById(`question-${i}`);
+        questionDiv.classList.remove('correct', 'incorrect');
+
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) {
+          const userAnswer = parseInt(selected.value);
+          if (userAnswer === q.answer) {
+            score++;
+            questionDiv.classList.add('correct');
+          } else {
+            questionDiv.classList.add('incorrect');
+          }
+        }
+      });
+
+      const result = document.getElementById('result');
+      const total = questions.length;
+      let message = '';
+      if (score >= total * 0.9) {
+        message = `¡Excelente! Obtuviste ${score}/${total}.`;
+        result.style.color = '#28a745';
+      } else if (score >= total * 0.6) {
+        message = `Vas muy bien, sigue practicando. Obtuviste ${score}/${total}.`;
+        result.style.color = '#fd7e14';
+      } else {
+        message = `Debes seguir practicando. Obtuviste ${score}/${total}.`;
+        result.style.color = '#dc3545';
+      }
+
+      result.innerText = message;
+      window.scrollTo(0, 0);
+      return false;
+    }
+  </script>
+</body>
+</html>```
+
+### **Tus Próximos Pasos (Checklist)**
+
+¡Ya tienes el código! Ahora solo queda la parte de implementación de tu lado:
+
+1.  **Reemplazar el Código:** Borra todo el contenido de tu archivo HTML actual y reemplázalo con este nuevo código.
+2.  **Preparar las Imágenes:** Crea las 6 imágenes y guárdalas con estos nombres exactos:
+    *   `ejercicio6.png`
+    *   `ejercicio8.png`
+    *   `ejercicio9.png`
+    *   `ejercicio10.png`
+    *   `ejercicio11.png`
+    *   `ejercicio12.png`
+3.  **Subir Todo a GitHub:** Sube a tu repositorio el archivo HTML actualizado y las 6 imágenes. **Todos los archivos deben estar en el mismo directorio.**
+4.  **Probar y Celebrar:** Espera un par de minutos a que GitHub Pages se actualice. Luego, visita tu enlace, selecciona el "Test 1 Preuniversitario" y ¡mira tu prototipo en acción!
+
+Siguiendo tu estrategia, hemos alcanzado el primer gran hito. ¡Felicidades por este avance
+Use code with caution.
+Html
